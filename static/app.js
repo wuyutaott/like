@@ -39,7 +39,6 @@ const els = {
   devGithub: $('dev-github'),
   devBlog: $('dev-blog'),
   devTwitter: $('dev-twitter'),
-  devAvatar: $('dev-avatar'),
   devReason: $('dev-reason'),
   devDlgTitle: $('dlg-dev-title'),
 };
@@ -266,23 +265,30 @@ function renderBookmarkItem(b) {
 
 function renderDeveloperCard(d) {
   const avatar = devAvatarUrl(d);
-  const user = githubUserFromUrl(d.github_url);
-  const handle = user ? `@${user}` : safeHost(d.github_url);
+  const ghUser = githubUserFromUrl(d.github_url);
+  const handle = ghUser ? `@${ghUser}` : '';
+  const primaryUrl = d.github_url || d.blog_url || d.twitter_url || '';
+  const wrap = (inner) => primaryUrl
+    ? `<a href="${escapeHtml(primaryUrl)}" target="_blank" rel="noopener" class="dev-avatar-link${avatar ? '' : ' dev-avatar-fallback'}">${inner}</a>`
+    : `<span class="dev-avatar-link${avatar ? '' : ' dev-avatar-fallback'}">${inner}</span>`;
+  const avatarHtml = wrap(
+    avatar
+      ? `<img class="dev-avatar" src="${avatar}" alt="" loading="lazy"
+              onerror="this.parentElement.classList.add('dev-avatar-fallback');this.remove()">`
+      : '',
+  );
+  const nameHtml = primaryUrl
+    ? `<a class="dev-card-name" href="${escapeHtml(primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(d.name)}</a>`
+    : `<span class="dev-card-name">${escapeHtml(d.name)}</span>`;
   const link = (url, label, cls) => url
     ? `<a class="dev-link ${cls}" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="${label}">${label}</a>`
     : '';
   return `
     <li class="bm dev-card" data-id="${d.id}">
       <div class="dev-card-head">
-        ${avatar
-          ? `<a href="${escapeHtml(d.github_url)}" target="_blank" rel="noopener" class="dev-avatar-link">
-               <img class="dev-avatar" src="${avatar}" alt="" loading="lazy"
-                    onerror="this.parentElement.classList.add('dev-avatar-fallback');this.remove()">
-             </a>`
-          : `<a href="${escapeHtml(d.github_url)}" target="_blank" rel="noopener" class="dev-avatar-link dev-avatar-fallback"></a>`
-        }
+        ${avatarHtml}
         <div class="dev-card-meta">
-          <a class="dev-card-name" href="${escapeHtml(d.github_url)}" target="_blank" rel="noopener">${escapeHtml(d.name)}</a>
+          ${nameHtml}
           ${handle ? `<div class="dev-card-handle">${escapeHtml(handle)}</div>` : ''}
         </div>
       </div>
@@ -404,15 +410,13 @@ function openDeveloperDialog({ mode, developer }) {
     els.devGithub.value = '';
     els.devBlog.value = '';
     els.devTwitter.value = '';
-    els.devAvatar.value = '';
     els.devReason.value = '';
   } else {
     els.devDlgTitle.textContent = '编辑 Developer';
     els.devName.value = developer.name;
-    els.devGithub.value = developer.github_url;
+    els.devGithub.value = developer.github_url || '';
     els.devBlog.value = developer.blog_url || '';
     els.devTwitter.value = developer.twitter_url || '';
-    els.devAvatar.value = developer.avatar_url || '';
     els.devReason.value = developer.reason || '';
     developerEditMode = { id: developer.id };
   }
@@ -559,13 +563,12 @@ els.formDev.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = {
     name: els.devName.value.trim(),
-    github_url: els.devGithub.value.trim(),
+    github_url: els.devGithub.value.trim() || null,
     blog_url: els.devBlog.value.trim() || null,
     twitter_url: els.devTwitter.value.trim() || null,
-    avatar_url: els.devAvatar.value.trim() || null,
     reason: els.devReason.value.trim(),
   };
-  if (!payload.name || !payload.github_url) return;
+  if (!payload.name) return;
   try {
     if (developerEditMode) {
       await api.updateDeveloper(developerEditMode.id, payload);

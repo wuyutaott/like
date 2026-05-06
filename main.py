@@ -76,7 +76,7 @@ class BookmarkPatch(BaseModel):
 
 class DeveloperIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    github_url: str = Field(min_length=1, max_length=500)
+    github_url: Optional[str] = Field(default=None, max_length=500)
     blog_url: Optional[str] = Field(default=None, max_length=500)
     twitter_url: Optional[str] = Field(default=None, max_length=500)
     avatar_url: Optional[str] = Field(default=None, max_length=500)
@@ -302,7 +302,7 @@ def create_developer(body: DeveloperIn):
             "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 body.name.strip(),
-                body.github_url.strip(),
+                (body.github_url or "").strip() or "",
                 (body.blog_url or "").strip() or None,
                 (body.twitter_url or "").strip() or None,
                 (body.avatar_url or "").strip() or None,
