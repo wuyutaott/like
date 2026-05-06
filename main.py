@@ -23,7 +23,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET"],
     same_site="lax",
-    https_only=False,
+    https_only=os.environ.get("SESSION_HTTPS_ONLY", "false").lower() == "true",
     max_age=60 * 60 * 24 * 30,
 )
 app.include_router(auth_router, prefix="/auth")
