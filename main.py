@@ -60,6 +60,20 @@ class BookmarkPatch(BaseModel):
     description: Optional[str] = None
 
 
+class DeveloperIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    url: str = Field(min_length=1, max_length=500)
+    avatar_url: Optional[str] = Field(default=None, max_length=500)
+    reason: Optional[str] = ""
+
+
+class DeveloperPatch(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    url: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    avatar_url: Optional[str] = Field(default=None, max_length=500)
+    reason: Optional[str] = None
+
+
 # ---------- Categories (read public, write owner-only) ----------
 @app.get("/api/categories")
 def list_categories():
@@ -230,5 +244,80 @@ def _fetch_bookmark(db, bid: int) -> dict:
         "SELECT id, category_id, title, url, description, created_at, updated_at "
         "FROM bookmarks WHERE id=?",
         (bid,),
+    ).fetchone()
+    return dict(row)
+
+
+# ---------- Developers (read public, write owner-only) ----------
+@app.get("/api/developers")
+def list_developers(q: Optional[str] = None):
+    sql = (
+        "SELECT id, name, url, avatar_url, reason, created_at, updated_at "
+        "FROM developers"
+    )
+    where, args = [], []
+    if q:
+        where.append("(name LIKE ? OR url LIKE ? OR reason LIKE ?)")
+        like = f"%{q.strip()}%"
+        args.extend([like, like, like])
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY updated_at DESC, id DESC"
+    with database.connect() as db:
+        rows = db.execute(sql, args).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/developers", status_code=201, dependencies=[Depends(require_owner)])
+def create_developer(body: DeveloperIn):
+    with database.connect() as db:
+        cur = db.execute(
+            "INSERT INTO developers(name, url, avatar_url, reason) "
+            "VALUES (?, ?, ?, ?)",
+            (
+                body.name.strip(),
+                body.url.strip(),
+                (body.avatar_url or "").strip() or None,
+                (body.reason or "").strip(),
+            ),
+        )
+        db.commit()
+        return _fetch_developer(db, cur.lastrowid)
+
+
+@app.patch("/api/developers/{did}", dependencies=[Depends(require_owner)])
+def update_developer(did: int, body: DeveloperPatch):
+    data = body.model_dump(exclude_unset=True)
+    if not data:
+        return {"ok": True}
+    with database.connect() as db:
+        if not db.execute("SELECT id FROM developers WHERE id=?", (did,)).fetchone():
+            raise HTTPException(404, "Developer 不存在")
+        for key in ("name", "url", "avatar_url", "reason"):
+            if key in data and data[key] is not None:
+                cleaned = data[key].strip()
+                data[key] = cleaned if cleaned else (None if key == "avatar_url" else "")
+        parts = [f"{k}=?" for k in data] + ["updated_at=CURRENT_TIMESTAMP"]
+        sql = f"UPDATE developers SET {', '.join(parts)} WHERE id=?"
+        db.execute(sql, (*data.values(), did))
+        db.commit()
+        return _fetch_developer(db, did)
+
+
+@app.delete("/api/developers/{did}", dependencies=[Depends(require_owner)])
+def delete_developer(did: int):
+    with database.connect() as db:
+        if not db.execute("SELECT id FROM developers WHERE id=?", (did,)).fetchone():
+            raise HTTPException(404, "Developer 不存在")
+        db.execute("DELETE FROM developers WHERE id=?", (did,))
+        db.commit()
+    return {"ok": True}
+
+
+def _fetch_developer(db, did: int) -> dict:
+    row = db.execute(
+        "SELECT id, name, url, avatar_url, reason, created_at, updated_at "
+        "FROM developers WHERE id=?",
+        (did,),
     ).fetchone()
     return dict(row)
