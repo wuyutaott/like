@@ -1,3 +1,4 @@
+import hashlib
 import os
 from pathlib import Path
 from typing import Optional
@@ -7,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.sessions import SessionMiddleware
@@ -30,9 +31,28 @@ app.include_router(auth_router, prefix="/auth")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
 
+def _static_version() -> str:
+    h = hashlib.sha1()
+    for f in sorted((BASE / "static").iterdir()):
+        if f.is_file():
+            h.update(f.read_bytes())
+    return h.hexdigest()[:10]
+
+
+STATIC_VERSION = _static_version()
+INDEX_HTML = (
+    (BASE / "static" / "index.html")
+    .read_text("utf-8")
+    .replace("__VERSION__", STATIC_VERSION)
+)
+
+
 @app.get("/")
-def index() -> FileResponse:
-    return FileResponse(BASE / "static" / "index.html")
+def index() -> HTMLResponse:
+    return HTMLResponse(
+        INDEX_HTML,
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 # ---------- Schemas ----------
