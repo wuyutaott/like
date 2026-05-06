@@ -36,7 +36,9 @@ const els = {
   bmCat: $('bm-cat'),
   bmDlgTitle: $('dlg-bm-title'),
   devName: $('dev-name'),
-  devUrl: $('dev-url'),
+  devGithub: $('dev-github'),
+  devBlog: $('dev-blog'),
+  devTwitter: $('dev-twitter'),
   devAvatar: $('dev-avatar'),
   devReason: $('dev-reason'),
   devDlgTitle: $('dlg-dev-title'),
@@ -66,7 +68,7 @@ function githubUserFromUrl(url) {
 
 function devAvatarUrl(dev) {
   if (dev.avatar_url) return dev.avatar_url;
-  const user = githubUserFromUrl(dev.url);
+  const user = githubUserFromUrl(dev.github_url);
   return user ? `https://github.com/${encodeURIComponent(user)}.png?size=200` : '';
 }
 
@@ -264,24 +266,32 @@ function renderBookmarkItem(b) {
 
 function renderDeveloperCard(d) {
   const avatar = devAvatarUrl(d);
-  const user = githubUserFromUrl(d.url);
-  const handle = user ? `@${user}` : safeHost(d.url);
+  const user = githubUserFromUrl(d.github_url);
+  const handle = user ? `@${user}` : safeHost(d.github_url);
+  const link = (url, label, cls) => url
+    ? `<a class="dev-link ${cls}" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="${label}">${label}</a>`
+    : '';
   return `
     <li class="bm dev-card" data-id="${d.id}">
       <div class="dev-card-head">
         ${avatar
-          ? `<a href="${escapeHtml(d.url)}" target="_blank" rel="noopener" class="dev-avatar-link">
+          ? `<a href="${escapeHtml(d.github_url)}" target="_blank" rel="noopener" class="dev-avatar-link">
                <img class="dev-avatar" src="${avatar}" alt="" loading="lazy"
                     onerror="this.parentElement.classList.add('dev-avatar-fallback');this.remove()">
              </a>`
-          : `<a href="${escapeHtml(d.url)}" target="_blank" rel="noopener" class="dev-avatar-link dev-avatar-fallback"></a>`
+          : `<a href="${escapeHtml(d.github_url)}" target="_blank" rel="noopener" class="dev-avatar-link dev-avatar-fallback"></a>`
         }
         <div class="dev-card-meta">
-          <a class="dev-card-name" href="${escapeHtml(d.url)}" target="_blank" rel="noopener">${escapeHtml(d.name)}</a>
+          <a class="dev-card-name" href="${escapeHtml(d.github_url)}" target="_blank" rel="noopener">${escapeHtml(d.name)}</a>
           ${handle ? `<div class="dev-card-handle">${escapeHtml(handle)}</div>` : ''}
         </div>
       </div>
       ${d.reason ? `<p class="dev-card-reason">${escapeHtml(d.reason)}</p>` : ''}
+      <div class="dev-card-links">
+        ${link(d.github_url, 'GitHub', 'gh')}
+        ${link(d.blog_url, 'Blog', 'blog')}
+        ${link(d.twitter_url, 'X', 'x')}
+      </div>
       <div class="bm-actions dev-card-actions">
         <button data-act="edit">编辑</button>
         <button data-act="del" class="del">删除</button>
@@ -391,13 +401,17 @@ function openDeveloperDialog({ mode, developer }) {
   if (mode === 'add') {
     els.devDlgTitle.textContent = '新增 Developer';
     els.devName.value = '';
-    els.devUrl.value = '';
+    els.devGithub.value = '';
+    els.devBlog.value = '';
+    els.devTwitter.value = '';
     els.devAvatar.value = '';
     els.devReason.value = '';
   } else {
     els.devDlgTitle.textContent = '编辑 Developer';
     els.devName.value = developer.name;
-    els.devUrl.value = developer.url;
+    els.devGithub.value = developer.github_url;
+    els.devBlog.value = developer.blog_url || '';
+    els.devTwitter.value = developer.twitter_url || '';
     els.devAvatar.value = developer.avatar_url || '';
     els.devReason.value = developer.reason || '';
     developerEditMode = { id: developer.id };
@@ -545,11 +559,13 @@ els.formDev.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = {
     name: els.devName.value.trim(),
-    url: els.devUrl.value.trim(),
+    github_url: els.devGithub.value.trim(),
+    blog_url: els.devBlog.value.trim() || null,
+    twitter_url: els.devTwitter.value.trim() || null,
     avatar_url: els.devAvatar.value.trim() || null,
     reason: els.devReason.value.trim(),
   };
-  if (!payload.name || !payload.url) return;
+  if (!payload.name || !payload.github_url) return;
   try {
     if (developerEditMode) {
       await api.updateDeveloper(developerEditMode.id, payload);

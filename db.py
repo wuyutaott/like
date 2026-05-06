@@ -29,15 +29,29 @@ CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_category ON bookmarks(category_id);
 
 CREATE TABLE IF NOT EXISTS developers (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    name       TEXT    NOT NULL,
-    url        TEXT    NOT NULL,
-    avatar_url TEXT,
-    reason     TEXT    NOT NULL DEFAULT '',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT    NOT NULL,
+    github_url  TEXT    NOT NULL,
+    blog_url    TEXT,
+    twitter_url TEXT,
+    avatar_url  TEXT,
+    reason      TEXT    NOT NULL DEFAULT '',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
+
+
+def _migrate_developers(conn) -> None:
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(developers)").fetchall()}
+    if not cols:
+        return
+    if "url" in cols and "github_url" not in cols:
+        conn.execute("ALTER TABLE developers RENAME COLUMN url TO github_url")
+    if "blog_url" not in cols:
+        conn.execute("ALTER TABLE developers ADD COLUMN blog_url TEXT")
+    if "twitter_url" not in cols:
+        conn.execute("ALTER TABLE developers ADD COLUMN twitter_url TEXT")
 
 
 @contextmanager
@@ -54,4 +68,5 @@ def connect():
 def init_db():
     with connect() as db:
         db.executescript(SCHEMA)
+        _migrate_developers(db)
         db.commit()

@@ -364,6 +364,38 @@ body.is-owner .bm:hover .bm-actions { opacity: 1; }
   align-items: flex-start !important;
 }
 
+.dev-card-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.dev-card-links:empty { display: none; }
+.dev-link {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: transparent;
+  transition: all .12s;
+  letter-spacing: .3px;
+}
+.dev-link:hover { color: var(--accent); border-color: var(--accent); background: var(--hover); }
+.dev-link.gh { color: #1f2937; border-color: #1f2937; }
+.dev-link.gh:hover { background: #1f2937; color: white; }
+.dev-link.x { color: #000; border-color: #000; }
+.dev-link.x:hover { background: #000; color: white; }
+.dev-link.blog:hover { background: #f97316; color: white; border-color: #f97316; }
+
+dialog label .hint {
+  color: var(--muted);
+  font-weight: normal;
+  font-size: 11px;
+}
+
 /* ---------------- Dialog ---------------- */
 dialog {
   border: none;

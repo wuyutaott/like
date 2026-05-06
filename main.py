@@ -82,14 +82,18 @@ class BookmarkPatch(BaseModel):
 
 class DeveloperIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    url: str = Field(min_length=1, max_length=500)
+    github_url: str = Field(min_length=1, max_length=500)
+    blog_url: Optional[str] = Field(default=None, max_length=500)
+    twitter_url: Optional[str] = Field(default=None, max_length=500)
     avatar_url: Optional[str] = Field(default=None, max_length=500)
     reason: Optional[str] = ""
 
 
 class DeveloperPatch(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    url: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    github_url: Optional[str] = Field(default=None, min_length=1, max_length=500)
+    blog_url: Optional[str] = Field(default=None, max_length=500)
+    twitter_url: Optional[str] = Field(default=None, max_length=500)
     avatar_url: Optional[str] = Field(default=None, max_length=500)
     reason: Optional[str] = None
 
@@ -269,17 +273,24 @@ def _fetch_bookmark(db, bid: int) -> dict:
 
 
 # ---------- Developers (read public, write owner-only) ----------
+DEV_COLS = (
+    "id, name, github_url, blog_url, twitter_url, "
+    "avatar_url, reason, created_at, updated_at"
+)
+DEV_NULLABLE_URLS = {"blog_url", "twitter_url", "avatar_url"}
+
+
 @app.get("/api/developers")
 def list_developers(q: Optional[str] = None):
-    sql = (
-        "SELECT id, name, url, avatar_url, reason, created_at, updated_at "
-        "FROM developers"
-    )
+    sql = f"SELECT {DEV_COLS} FROM developers"
     where, args = [], []
     if q:
-        where.append("(name LIKE ? OR url LIKE ? OR reason LIKE ?)")
+        where.append(
+            "(name LIKE ? OR github_url LIKE ? OR blog_url LIKE ? "
+            "OR twitter_url LIKE ? OR reason LIKE ?)"
+        )
         like = f"%{q.strip()}%"
-        args.extend([like, like, like])
+        args.extend([like] * 5)
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY updated_at DESC, id DESC"
@@ -292,11 +303,14 @@ def list_developers(q: Optional[str] = None):
 def create_developer(body: DeveloperIn):
     with database.connect() as db:
         cur = db.execute(
-            "INSERT INTO developers(name, url, avatar_url, reason) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO developers"
+            "(name, github_url, blog_url, twitter_url, avatar_url, reason) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             (
                 body.name.strip(),
-                body.url.strip(),
+                body.github_url.strip(),
+                (body.blog_url or "").strip() or None,
+                (body.twitter_url or "").strip() or None,
                 (body.avatar_url or "").strip() or None,
                 (body.reason or "").strip(),
             ),
@@ -313,10 +327,14 @@ def update_developer(did: int, body: DeveloperPatch):
     with database.connect() as db:
         if not db.execute("SELECT id FROM developers WHERE id=?", (did,)).fetchone():
             raise HTTPException(404, "Developer 不存在")
-        for key in ("name", "url", "avatar_url", "reason"):
-            if key in data and data[key] is not None:
-                cleaned = data[key].strip()
-                data[key] = cleaned if cleaned else (None if key == "avatar_url" else "")
+        for key, value in list(data.items()):
+            if value is None:
+                continue
+            cleaned = value.strip()
+            if cleaned:
+                data[key] = cleaned
+            else:
+                data[key] = None if key in DEV_NULLABLE_URLS else ""
         parts = [f"{k}=?" for k in data] + ["updated_at=CURRENT_TIMESTAMP"]
         sql = f"UPDATE developers SET {', '.join(parts)} WHERE id=?"
         db.execute(sql, (*data.values(), did))
@@ -336,8 +354,6 @@ def delete_developer(did: int):
 
 def _fetch_developer(db, did: int) -> dict:
     row = db.execute(
-        "SELECT id, name, url, avatar_url, reason, created_at, updated_at "
-        "FROM developers WHERE id=?",
-        (did,),
+        f"SELECT {DEV_COLS} FROM developers WHERE id=?", (did,),
     ).fetchone()
     return dict(row)
