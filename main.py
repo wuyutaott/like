@@ -31,28 +31,22 @@ app.include_router(auth_router, prefix="/auth")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
 
+STATIC_DIR = BASE / "static"
+
+
 def _static_version() -> str:
-    h = hashlib.sha1()
-    for f in sorted((BASE / "static").iterdir()):
-        if f.is_file():
-            h.update(f.read_bytes())
-    return h.hexdigest()[:10]
-
-
-STATIC_VERSION = _static_version()
-INDEX_HTML = (
-    (BASE / "static" / "index.html")
-    .read_text("utf-8")
-    .replace("__VERSION__", STATIC_VERSION)
-)
+    latest = max(
+        (f.stat().st_mtime for f in STATIC_DIR.iterdir() if f.is_file()),
+        default=0,
+    )
+    return str(int(latest))
 
 
 @app.get("/")
 def index() -> HTMLResponse:
-    return HTMLResponse(
-        INDEX_HTML,
-        headers={"Cache-Control": "no-cache, must-revalidate"},
-    )
+    html = (STATIC_DIR / "index.html").read_text("utf-8")
+    html = html.replace("__VERSION__", _static_version())
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
 # ---------- Schemas ----------
