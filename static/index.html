@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Like · 我的收藏夹</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <header class="brand">
+      <h1>📚 Like</h1>
+      <button id="btn-add-cat" class="ghost owner-only" title="新增一级分类">+ 分类</button>
+    </header>
+    <input id="search" type="search" placeholder="搜索标题 / URL / 说明…" autocomplete="off">
+    <nav id="tree" class="tree"></nav>
+    <footer id="account" class="account"></footer>
+  </aside>
+
+  <main class="content">
+    <header class="content-head">
+      <div id="breadcrumb" class="crumb">全部书签</div>
+      <button id="btn-add-bm" class="primary owner-only">+ 新增书签</button>
+    </header>
+    <ul id="bookmarks" class="bookmarks"></ul>
+    <div id="empty" class="empty hidden">这里还没有内容</div>
+  </main>
+</div>
+
+<dialog id="dlg-cat">
+  <form method="dialog" id="form-cat">
+    <h3 id="dlg-cat-title">新增分类</h3>
+    <label>名称
+      <input id="cat-name" required maxlength="60" autocomplete="off">
+    </label>
+    <label>父分类
+      <select id="cat-parent">
+        <option value="">— 一级分类 —</option>
+      </select>
+    </label>
+    <menu>
+      <button type="button" data-close>取消</button>
+      <button type="submit" class="primary">保存</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-bm">
+  <form method="dialog" id="form-bm">
+    <h3 id="dlg-bm-title">新增书签</h3>
+    <label>标题
+      <input id="bm-title" required maxlength="200" autocomplete="off">
+    </label>
+    <label>URL
+      <input id="bm-url" type="url" required maxlength="2000"
+             placeholder="https://…" autocomplete="off">
+    </label>
+    <label>说明
+      <textarea id="bm-desc" rows="3" maxlength="2000"
+                placeholder="可选：为什么收藏它？"></textarea>
+    </label>
+    <label>分类
+      <select id="bm-cat" required></select>
+    </label>
+    <menu>
+      <button type="button" data-close>取消</button>
+      <button type="submit" class="primary">保存</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>
